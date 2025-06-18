@@ -15,7 +15,7 @@ classifiers = [
     "Operating System :: OS Independent",
     "License :: OSI Approved :: MIT License",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9,<=3.12"
 dependencies = [
     "ipdb",
     "jupyter",
@@ -50,11 +50,11 @@ build-backend = "setuptools.build_meta"
 [project.optional-dependencies]
 cpu = ["torch>=2.6.0", "torchvision>=0.21.0"]
 cu118 = ["torch>=2.6.0", "torchvision>=0.21.0"]
-cu121 = ["torch>=2.6.0", "torchvision>=0.21.0"]
+cu124 = ["torch>=2.6.0", "torchvision>=0.21.0"]
 
 [tool.uv]
 no-build-isolation-package = ["flash-attn"]
-conflicts = [[{ extra = "cpu" }, { extra = "cu118" }, { extra = "cu121" }]]
+conflicts = [[{ extra = "cpu" }, { extra = "cu118" }, { extra = "cu124" }]]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
@@ -67,18 +67,18 @@ url = "https://download.pytorch.org/whl/cu118"
 explicit = true
 
 [[tool.uv.index]]
-name = "pytorch-cu121"
-url = "https://download.pytorch.org/whl/cu121"
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
 explicit = true
 
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-cu126", extra = "cpu" },
-    { index = "pytorch-cu126", extra = "cu118" },
-    { index = "pytorch-cu121", extra = "cu121" },
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu118", extra = "cu118" },
+    { index = "pytorch-cu124", extra = "cu124" },
 ]
 torchvision = [
-    { index = "pytorch-cu121", extra = "cpu" },
-    { index = "pytorch-cu121", extra = "cu118" },
-    { index = "pytorch-cu121", extra = "cu121" },
+    { index = "pytorch-cpu", extra = "cpu" },
+    { index = "pytorch-cu118", extra = "cu118" },
+    { index = "pytorch-cu124", extra = "cu124" },
 ]
