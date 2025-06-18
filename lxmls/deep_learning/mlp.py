@@ -5,7 +5,7 @@ plotting
 
 import os
 from copy import deepcopy
-from typing import Literal
+from typing import Literal, Union
 
 import numpy as np
 import yaml
@@ -188,7 +188,7 @@ class MLP(Model):
             cPickle.dump(self.parameters, fid, cPickle.HIGHEST_PROTOCOL)
 
     def plot_weights(
-        self, show=True, aspect: float | Literal["equal", "auto"] = "auto"
+        self, show=True, aspect: Union[float, Literal["equal", "auto"]] = "auto"
     ):
         """
         Plots the weights of the newtwork

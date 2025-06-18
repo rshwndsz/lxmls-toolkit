@@ -26,35 +26,29 @@ dependencies = [
     "scipy",
     "six",
     "transformers",
-    # Test
-    "pytest",
-    # Dev
     "ruff",
 ]
 
 [project.urls]
 Homepage = "https://github.com/LxMLS/lxmls-toolkit"
 
-[tool.setuptools]
-packages = ["lxmls"]
-include-package-data = true
-
-[tool.setuptools.package-data]
-"lxmls.readers" = ["*.map"]
-
-[build-system]
-requires = ["setuptools>=61.0", "wheel"]
-build-backend = "setuptools.build_meta"
-
 # https://docs.astral.sh/uv/guides/integration/pytorch
 [project.optional-dependencies]
 cpu = ["torch>=2.6.0", "torchvision>=0.21.0"]
 cu118 = ["torch>=2.6.0", "torchvision>=0.21.0"]
 cu124 = ["torch>=2.6.0", "torchvision>=0.21.0"]
+test = ["pytest"]
 
 [tool.uv]
 no-build-isolation-package = ["flash-attn"]
-conflicts = [[{ extra = "cpu" }, { extra = "cu118" }, { extra = "cu124" }]]
+conflicts = [
+    [
+        { extra = "cpu" },
+        { extra = "cu118" },
+        { extra = "cu124" },
+        { extra = "test" },
+    ],
+]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
@@ -82,3 +76,14 @@ torchvision = [
     { index = "pytorch-cu118", extra = "cu118" },
     { index = "pytorch-cu124", extra = "cu124" },
 ]
+
+[tool.setuptools]
+packages = ["lxmls"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"lxmls.readers" = ["*.map"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
