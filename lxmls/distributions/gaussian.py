@@ -1,6 +1,5 @@
 import numpy as np
 
-
 # ----------
 # Class for univariate gaussian
 # p(x) = 1/sqrt(2*pi*simga^2) * e ^ - (x-miu)^2/2*sigma^2
@@ -9,7 +8,6 @@ import numpy as np
 
 
 class Gaussian:
-
     def __init__(self, mean, variance):
         self.mean = mean
         self.variance = variance

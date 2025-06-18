@@ -1,0 +1,49 @@
+[project]
+name = "lxmls"
+version = "0.0.2"
+description = "Machine Learning and Natural Language toolkit"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "LxMLS team" }]
+keywords = ["machine learning"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "License :: OSI Approved :: MIT License",
+]
+requires-python = ">=3.8"
+dependencies = [
+    "ipdb",
+    "jupyter",
+    "matplotlib",
+    "nltk",
+    "numpy",
+    "pyyaml",
+    "scipy",
+    "six",
+    "torch",
+    "torchvision",
+    "transformers",
+    # Test
+    "pytest",
+    # Dev
+    "ruff",
+]
+
+[project.urls]
+Homepage = "https://github.com/LxMLS/lxmls-toolkit"
+
+[tool.setuptools]
+packages = ["lxmls"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+"lxmls.readers" = ["*.map"]
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
