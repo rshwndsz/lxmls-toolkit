@@ -1,3 +1,5 @@
+![Python Version from PEP 621 TOML](https://img.shields.io/python/required-version-toml?tomlFilePath=https%3A%2F%2Fraw.githubusercontent.com%2Frshwndsz%2Flxmls-toolkit%2Fmaster%2Fpyproject.toml)
+
 # LxMLS 2025
 
 Machine learning toolkit for natural language processing. Written for [LxMLS - Lisbon Machine Learning Summer School](http://lxmls.it.pt)
