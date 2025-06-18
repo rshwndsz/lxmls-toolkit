@@ -72,7 +72,7 @@ Activate the virtual environment with
 To run the all tests install `pytest`
 
 ```bash
-uv sync --extra test
+uv sync --extra {cpu, cu118, cu124} --extra test
 ```
 
 and run

@@ -41,14 +41,7 @@ test = ["pytest"]
 
 [tool.uv]
 no-build-isolation-package = ["flash-attn"]
-conflicts = [
-    [
-        { extra = "cpu" },
-        { extra = "cu118" },
-        { extra = "cu124" },
-        { extra = "test" },
-    ],
-]
+conflicts = [[{ extra = "cpu" }, { extra = "cu118" }, { extra = "cu124" }]]
 
 [[tool.uv.index]]
 name = "pytorch-cpu"
