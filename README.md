@@ -47,7 +47,7 @@ uv python install 3.12
 ```
 
 [Reference](https://docs.astral.sh/uv/guides/integration/pytorch) <br>
-Choose the torch index based on your system:
+Choose the torch index based on your system and setup the environment:
 ```bash
 uv sync --extra {cpu, cu118, cu124}
 ```
@@ -69,7 +69,7 @@ Activate the virtual environment with
 
 ### Development
 
-To run the all tests `pytest`
+To run the all tests install `pytest`
 
 ```bash
 uv sync --extra test
