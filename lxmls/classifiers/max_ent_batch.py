@@ -2,7 +2,7 @@ import numpy as np
 import scipy.optimize.lbfgsb as opt2
 
 import lxmls.classifiers.linear_classifier as lc
-from lxmls.util.my_math_utils import l2norm_squared
+from lxmls.utils.math import l2norm_squared
 
 
 # ----------
