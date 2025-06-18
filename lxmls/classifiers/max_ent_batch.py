@@ -1,5 +1,5 @@
 import numpy as np
-import scipy.optimize.lbfgsb as opt2
+from scipy.optimize import fmin_l_bfgs_b
 
 import lxmls.classifiers.linear_classifier as lc
 from lxmls.utils.math import l2norm_squared
@@ -44,7 +44,7 @@ class MaxEntBatch(lc.LinearClassifier):
         self, parameters, x, y, sigma, emp_counts, classes_idx, nr_x, nr_f, nr_c
     ):
         parameters2 = parameters.reshape([nr_f * nr_c], order="F")
-        result, _, d = opt2.fmin_l_bfgs_b(
+        result, _, d = fmin_l_bfgs_b(
             self.get_objective,
             parameters2,
             args=[x, y, sigma, emp_counts, classes_idx, nr_x, nr_f, nr_c],
