@@ -478,20 +478,10 @@ class SiglipVisionTransformer(nn.Module):
         )
 
 
-class SiglipPreTrainedModel(PreTrainedModel):
-    config_class = SiglipConfig
+class SiglipVisionModel(PreTrainedModel):
+    config_class = SiglipVisionConfig
+    main_input_name = "pixel_values"
     base_model_prefix = "siglip"
-    supports_gradient_checkpointing = True
-
-    _no_split_modules = [
-        "SiglipTextEmbeddings",
-        "SiglipEncoderLayer",
-        "SiglipVisionEmbeddings",
-        "SiglipEncoderLayer",
-        "SiglipMultiheadAttentionPoolingHead",
-    ]
-    _supports_flash_attn_2 = True
-    _supports_sdpa = True
 
     def _init_weights(self, module):
         """Initialize the weights"""
@@ -529,11 +519,6 @@ class SiglipPreTrainedModel(PreTrainedModel):
         elif isinstance(module, nn.LayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
-
-
-class SiglipVisionModel(PreTrainedModel):
-    config_class = SiglipVisionConfig
-    main_input_name = "pixel_values"
 
     def __init__(self, config: SiglipVisionConfig):
         super().__init__(config)

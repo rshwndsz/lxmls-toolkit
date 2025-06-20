@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 # TODO: Bring into file
-from transformers import GenerationConfig
+from transformers import BitsAndBytesConfig, GenerationConfig
 from transformers.activations import ACT2FN
 from transformers.cache_utils import Cache, DynamicCache
 from transformers.configuration_utils import PretrainedConfig, layer_type_validation
@@ -64,20 +64,6 @@ logger.setLevel(logging.DEBUG)
 class Gemma3TextConfig(PretrainedConfig):
     model_type = "gemma3_text"
     keys_to_ignore_at_inference = ["past_key_values"]
-    base_model_tp_plan = {
-        "layers.*.self_attn.q_proj": "colwise",
-        "layers.*.self_attn.k_proj": "colwise",
-        "layers.*.self_attn.v_proj": "colwise",
-        "layers.*.self_attn.o_proj": "rowwise",
-        "layers.*.mlp.gate_proj": "colwise",
-        "layers.*.mlp.up_proj": "colwise",
-        "layers.*.mlp.down_proj": "rowwise",
-    }
-    base_model_pp_plan = {
-        "embed_tokens": (["input_ids"], ["inputs_embeds"]),
-        "layers": (["hidden_states", "attention_mask"], ["hidden_states"]),
-        "norm": (["hidden_states"], ["hidden_states"]),
-    }
 
     def __init__(
         self,
@@ -1373,7 +1359,12 @@ class Gemma3Processor(ProcessorMixin):
 
 
 def inference():
-    model = Gemma3ForConditionalGeneration.from_pretrained("google/gemma-3-4b-it")
+    quantization_config = BitsAndBytesConfig(load_in_4bit=True)
+    model = Gemma3ForConditionalGeneration.from_pretrained(
+        "google/gemma-3-4b-it",
+        quantization_config=quantization_config,
+        torch_dtype=torch.bfloat16,
+    )
     processor = Gemma3Processor.from_pretrained("google/gemma-3-4b-it")
 
     messages = [
@@ -1381,6 +1372,16 @@ def inference():
             "role": "system",
             "content": [{"type": "text", "text": "You are a helpful assistant."}],
         },
+        # {
+        #     "role": "user",
+        #     "content": [
+        #         {
+        #             "type": "image",
+        #             "url": "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg",
+        #         },
+        #         {"type": "text", "text": "Where is the cat standing?"},
+        #     ],
+        # },
         {
             "role": "user",
             "content": [
@@ -1388,7 +1389,7 @@ def inference():
                     "type": "image",
                     "url": "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg",
                 },
-                {"type": "text", "text": "Where is the cat standing?"},
+                {"type": "text", "text": "Is the cat chonky?"},
             ],
         },
     ]
@@ -1399,10 +1400,18 @@ def inference():
         return_dict=True,
         return_tensors="pt",
         add_generation_prompt=True,
+    ).to(model.device)
+    generation_config = GenerationConfig(
+        do_sample=False,
+        max_new_tokens=64,
     )
-    generation_config = GenerationConfig(max_new_tokens=64)
-    generate_ids = model.generate(**inputs, generation_config=generation_config)
-    return processor.batch_decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+    output_ids = model.generate(**inputs, generation_config=generation_config)
+    output_str = processor.batch_decode(
+        output_ids[:, len(inputs["input_ids"].squeeze()) :],
+        skip_special_tokens=True,
+        clean_up_tokenization_spaces=False,
+    )[0]
+    return output_str
 
 
 if __name__ == "__main__":
