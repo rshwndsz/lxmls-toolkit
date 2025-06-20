@@ -30,9 +30,7 @@ class PytorchRNN(RNN):
 
         # First parameters are the embeddings
         # instantiate the embedding layer first
-        self.embedding_layer = torch.nn.Embedding(
-            config["input_size"], config["embedding_size"]
-        )
+        self.embedding_layer = torch.nn.Embedding(config["input_size"], config["embedding_size"])
 
         # Set its value to the stored weight
         self.embedding_layer.weight.data = cast_float(self.parameters[0]).data
@@ -153,16 +151,12 @@ class FastPytorchRNN(RNN):
 
         # First parameters are the embeddings
         # instantiate the embedding layer first
-        self.embedding_layer = torch.nn.Embedding(
-            config["input_size"], config["embedding_size"]
-        )
+        self.embedding_layer = torch.nn.Embedding(config["input_size"], config["embedding_size"])
         # Set its value to the stored weight
         self.embedding_layer.weight.data = cast_float(self.parameters[0]).data
 
         # RNN
-        self.rnn = torch.nn.RNN(
-            config["embedding_size"], config["hidden_size"], bias=False
-        )
+        self.rnn = torch.nn.RNN(config["embedding_size"], config["hidden_size"], bias=False)
         # TODO: Set paremeters here
 
         # Log softmax
@@ -174,9 +168,7 @@ class FastPytorchRNN(RNN):
 
         # Get the parameters
         self.parameters = (
-            [self.embedding_layer.weight]
-            + list(self.rnn.parameters())
-            + [cast_float(self.parameters[-1])]
+            [self.embedding_layer.weight] + list(self.rnn.parameters()) + [cast_float(self.parameters[-1])]
         )
 
     def predict(self, input):

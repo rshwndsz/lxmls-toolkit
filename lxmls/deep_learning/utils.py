@@ -58,9 +58,7 @@ def glorot_weight_init(shape, activation_function, random_seed=None):
 
 
 class AmazonData(object):
-    """
-    Template
-    """
+    """Template"""
 
     def __init__(self, **config):
         # Data-sets
@@ -78,9 +76,7 @@ class AmazonData(object):
         # Config
         self.config = config
         # Number of samples
-        self.nr_samples = {
-            sset: content["output"].shape[0] for sset, content in self.datasets.items()
-        }
+        self.nr_samples = {sset: content["output"].shape[0] for sset, content in self.datasets.items()}
 
     def size(self, set_name):
         return self.nr_samples[set_name]
@@ -99,18 +95,14 @@ class AmazonData(object):
             # Colect data for this batch
             data_batch = {}
             for side in ["input", "output"]:
-                data_batch[side] = dset[side][
-                    batch_n * batch_size : (batch_n + 1) * batch_size
-                ]
+                data_batch[side] = dset[side][batch_n * batch_size : (batch_n + 1) * batch_size]
             data.append(data_batch)
 
         return DataIterator(data, nr_samples=self.nr_samples[set_name])
 
 
 class DataIterator(object):
-    """
-    Basic data iterator
-    """
+    """Basic data iterator"""
 
     def __init__(self, data, nr_samples):
         self.data = data

@@ -76,13 +76,9 @@ class WeatherDataset(Dataset):
 
     # Dummy function for converting random logits to probabilities
     def logits_to_probs(self, logits):
-        logits = np.array(
-            logits
-        )  # Convert the list to a numpy array for efficient calculations
+        logits = np.array(logits)  # Convert the list to a numpy array for efficient calculations
         exp_logits = np.exp(logits)  # Apply the exponential function to each element
-        probabilities = exp_logits / np.sum(
-            exp_logits
-        )  # Divide each element by the sum of all elements
+        probabilities = exp_logits / np.sum(exp_logits)  # Divide each element by the sum of all elements
         return probabilities.tolist()  # Convert the numpy array back to a Python list
 
     # We should NOT use that.
@@ -187,9 +183,7 @@ class WeatherDataset(Dataset):
 
             # figure out if this generated example is train or test based on its hash
             h = hash(pickle.dumps(obs))
-            inp_split = (
-                "test" if h % 4 == 0 else "train"
-            )  # designate 25% of examples as test
+            inp_split = "test" if h % 4 == 0 else "train"  # designate 25% of examples as test
             if inp_split == self.split:
                 break  # ok
 

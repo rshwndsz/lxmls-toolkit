@@ -48,9 +48,7 @@ def initialize_mlp_parameters(geometry, loaded_parameters=None, random_seed=None
         random_seed = np.random.RandomState(1234)
 
     if loaded_parameters is not None:
-        assert (
-            len(loaded_parameters) == num_layers
-        ), "New geometry not matching model saved"
+        assert len(loaded_parameters) == num_layers, "New geometry not matching model saved"
 
     parameters = []
     for n in range(num_layers):
@@ -60,14 +58,10 @@ def initialize_mlp_parameters(geometry, loaded_parameters=None, random_seed=None
             assert weight.shape == (geometry[n + 1], geometry[n]), (
                 "New geometry does not match for weigths in layer %d" % n
             )
-            assert bias.shape == (1, geometry[n + 1]), (
-                "New geometry does not match for bias in layer %d" % n
-            )
+            assert bias.shape == (1, geometry[n + 1]), "New geometry does not match for bias in layer %d" % n
 
         else:
-            weight = glorot_weight_init(
-                (geometry[n], geometry[n + 1]), activation_functions[n], random_seed
-            )
+            weight = glorot_weight_init((geometry[n], geometry[n + 1]), activation_functions[n], random_seed)
 
             # Bias
             bias = np.zeros((1, geometry[n + 1]))
@@ -147,16 +141,12 @@ class MLP(Model):
         # MEMBER VARIABLES
         self.num_layers = len(config["geometry"]) - 1
         self.config = config
-        self.parameters = initialize_mlp_parameters(
-            config["geometry"], loaded_parameters
-        )
+        self.parameters = initialize_mlp_parameters(config["geometry"], loaded_parameters)
 
     def sanity_checks(self, config):
         model_folder = config.get("model_folder", None)
 
-        assert bool(config is None) or bool(
-            model_folder is None
-        ), "Need to specify config, model_folder or both"
+        assert bool(config is None) or bool(model_folder is None), "Need to specify config, model_folder or both"
 
         if model_folder is not None:
             model_file = "%s/config.yml" % model_folder
@@ -187,9 +177,7 @@ class MLP(Model):
         with open(parameter_file, "wb") as fid:
             cPickle.dump(self.parameters, fid, cPickle.HIGHEST_PROTOCOL)
 
-    def plot_weights(
-        self, show=True, aspect: Union[float, Literal["equal", "auto"]] = "auto"
-    ):
+    def plot_weights(self, show=True, aspect: Union[float, Literal["equal", "auto"]] = "auto"):
         """
         Plots the weights of the newtwork
 
