@@ -1370,18 +1370,10 @@ def inference():
     messages = [
         {
             "role": "system",
-            "content": [{"type": "text", "text": "You are a helpful assistant."}],
+            "content": [
+                {"type": "text", "text": "You are a helpful assistant who gives concise yet detailed answers."}
+            ],
         },
-        # {
-        #     "role": "user",
-        #     "content": [
-        #         {
-        #             "type": "image",
-        #             "url": "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg",
-        #         },
-        #         {"type": "text", "text": "Where is the cat standing?"},
-        #     ],
-        # },
         {
             "role": "user",
             "content": [
@@ -1415,4 +1407,4 @@ def inference():
 
 
 if __name__ == "__main__":
-    print(inference())
+    print("\n\nOUTPUT:", inference())
