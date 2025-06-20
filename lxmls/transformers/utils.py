@@ -55,10 +55,7 @@ class CfgNode:
 
     def to_dict(self):
         """return a dict representation of the config"""
-        return {
-            k: v.to_dict() if isinstance(v, CfgNode) else v
-            for k, v in self.__dict__.items()
-        }
+        return {k: v.to_dict() if isinstance(v, CfgNode) else v for k, v in self.__dict__.items()}
 
     def merge_from_dict(self, d):
         self.__dict__.update(d)
@@ -75,9 +72,7 @@ class CfgNode:
         """
         for arg in args:
             keyval = arg.split("=")
-            assert len(keyval) == 2, (
-                "expecting each override arg to be of form --arg=value, got %s" % arg
-            )
+            assert len(keyval) == 2, "expecting each override arg to be of form --arg=value, got %s" % arg
             key, val = keyval  # unpack
 
             # first translate val into a python object
@@ -101,9 +96,7 @@ class CfgNode:
             leaf_key = keys[-1]
 
             # ensure that this attribute exists
-            assert hasattr(
-                obj, leaf_key
-            ), f"{key} is not an attribute that exists in the config"
+            assert hasattr(obj, leaf_key), f"{key} is not an attribute that exists in the config"
 
             # overwrite the attribute
             print("command line overwriting config attribute %s with %s" % (key, val))

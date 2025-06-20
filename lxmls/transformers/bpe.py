@@ -32,11 +32,7 @@ def bytes_to_unicode():
     like 'Ā', or 'Ġ', etc.
     """
     # the 188 integers that render fine in their original form and need no shifting
-    bs = (
-        list(range(ord("!"), ord("~") + 1))
-        + list(range(ord("¡"), ord("¬") + 1))
-        + list(range(ord("®"), ord("ÿ") + 1))
-    )
+    bs = list(range(ord("!"), ord("~") + 1)) + list(range(ord("¡"), ord("¬") + 1)) + list(range(ord("®"), ord("ÿ") + 1))
     cs = bs[:]  # all integers b in bs will simply map to chr(b) in the output dict
     # now get the representations of the other 68 integers that do need shifting
     # each will get mapped chr(256 + n), where n will grow from 0...67 in the loop
@@ -92,9 +88,7 @@ class Encoder:
         # So TLDR:
         # - we are special casing a few common apostrophe constructs ('s, 't, 're, ...) and making those into separate tokens
         # - we then separate out strings into consecutive chunks of 1) letters, 2) numbers, 3) non-letter-numbers, 4) whitespaces
-        self.pat = re.compile(
-            r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-        )
+        self.pat = re.compile(r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""")
         self.cache = {}
 
     def bpe(self, token):
@@ -238,22 +232,16 @@ def get_encoder():
 
     # load encoder.json that has the raw mappings from token -> bpe index
     encoder_local_file = os.path.join(cache_dir, "encoder.json")
-    encoder_remote_file = (
-        "https://openaipublic.blob.core.windows.net/gpt-2/models/124M/encoder.json"
-    )
+    encoder_remote_file = "https://openaipublic.blob.core.windows.net/gpt-2/models/124M/encoder.json"
     get_file(encoder_local_file, encoder_remote_file)
     with open(encoder_local_file, "r") as f:
         encoder = json.load(f)
-    assert (
-        len(encoder) == 50257
-    )  # 256 individual byte tokens, 50,000 merged tokens, and 1 special <|endoftext|> token
+    assert len(encoder) == 50257  # 256 individual byte tokens, 50,000 merged tokens, and 1 special <|endoftext|> token
 
     # load vocab.bpe that contains the bpe merges, i.e. the bpe tree structure
     # in the form tuples (a, b), that indicate that (a, b) is to be merged to one token ab
     vocab_local_file = os.path.join(cache_dir, "vocab.bpe")
-    vocab_remote_file = (
-        "https://openaipublic.blob.core.windows.net/gpt-2/models/124M/vocab.bpe"
-    )
+    vocab_remote_file = "https://openaipublic.blob.core.windows.net/gpt-2/models/124M/vocab.bpe"
     get_file(vocab_local_file, vocab_remote_file)
     with open(vocab_local_file, "r", encoding="utf-8") as f:
         bpe_data = f.read()

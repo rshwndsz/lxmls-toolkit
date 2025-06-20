@@ -23,12 +23,8 @@ class SimpleDataSet:
     ):
         # use a given seed for controled tests
         np.random.seed(seed)
-        nr_positive = int(
-            nr_examples * balance
-        )  # number of examples of "positive" class
-        nr_negative = int(
-            nr_examples - nr_positive
-        )  # number of examples of "negative" class
+        nr_positive = int(nr_examples * balance)  # number of examples of "positive" class
+        nr_negative = int(nr_examples - nr_positive)  # number of examples of "negative" class
         self.mean1 = g1[0]  # mean of positive class
         self.mean2 = g2[0]  # mean of negative class
         self.variance1 = g1[1]  #
@@ -83,12 +79,8 @@ class SimpleDataSet:
         params = np.zeros((3, 2))
         p1 = self.balance
         p2 = 1.0 - self.balance
-        params[0, 0] = -1.0 / (2.0 * self.variance1) * np.dot(
-            self.mean1, self.mean1
-        ) + np.log(p1)
-        params[0, 1] = -1.0 / (2.0 * self.variance2) * np.dot(
-            self.mean2, self.mean2
-        ) + np.log(p2)
+        params[0, 0] = -1.0 / (2.0 * self.variance1) * np.dot(self.mean1, self.mean1) + np.log(p1)
+        params[0, 1] = -1.0 / (2.0 * self.variance2) * np.dot(self.mean2, self.mean2) + np.log(p2)
         params[1, 0] = 1.0 / self.variance1 * self.mean1[0]
         params[2, 0] = 1.0 / self.variance1 * self.mean1[1]
         params[1, 1] = 1.0 / self.variance2 * self.mean2[0]
@@ -156,9 +148,7 @@ class SimpleDataSet:
         x_max = np.max(self.train_X)
         x_min = np.min(self.train_X)
         x = np.arange(x_min, x_max, 0.1, dtype="float")
-        y_star = ((params[1, 1] - params[1, 0]) * x + (params[0, 1] - params[0, 0])) / (
-            params[2, 0] - params[2, 1]
-        )
+        y_star = ((params[1, 1] - params[1, 0]) * x + (params[0, 1] - params[0, 0])) / (params[2, 0] - params[2, 1])
         axis.plot(x, y_star, "g--", c=colour, label=name, linewidth=2)
         axis.legend()
         return fig, axis

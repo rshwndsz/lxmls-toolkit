@@ -1,7 +1,4 @@
-"""
-Basic MLP class methods for parameters initialization, saving, loading
-plotting
-"""
+"""Basic MLP class methods for parameters initialization, saving, loading plotting"""
 
 import os
 from copy import deepcopy
@@ -14,9 +11,6 @@ from lxmls.deep_learning.utils import Model
 
 
 def load_parameters(parameter_file):
-    """
-    Load model
-    """
     with open(parameter_file, "rb") as fid:
         parameters = pickle.load(fid)
     return parameters
@@ -155,9 +149,7 @@ class RNN(Model):
     def sanity_checks(self, config):
         model_folder = config.get("model_folder", None)
 
-        assert bool(config is None) or bool(
-            model_folder is None
-        ), "Need to specify config, model_folder or both"
+        assert bool(config is None) or bool(model_folder is None), "Need to specify config, model_folder or both"
 
         if config is not None:
             pass
