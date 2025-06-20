@@ -9,9 +9,6 @@ from typing import Any, Optional, Union
 import numpy as np
 import torch
 import torch.nn as nn
-
-# TODO: Bring into file
-from transformers import BitsAndBytesConfig, GenerationConfig
 from transformers.activations import ACT2FN
 from transformers.cache_utils import Cache, DynamicCache
 from transformers.configuration_utils import PretrainedConfig, layer_type_validation
@@ -24,10 +21,7 @@ from transformers.masking_utils import (
     create_sliding_window_causal_mask,
 )
 from transformers.modeling_flash_attention_utils import FlashAttentionKwargs
-from transformers.modeling_outputs import (
-    BaseModelOutputWithPast,
-    CausalLMOutputWithPast,
-)
+from transformers.modeling_outputs import BaseModelOutputWithPast
 from transformers.modeling_rope_utils import (
     ROPE_INIT_FUNCTIONS,
     dynamic_rope_update,
@@ -685,101 +679,6 @@ class Gemma3TextModel(Gemma3PreTrainedModel):
         )
 
 
-class Gemma3ForCausalLM(Gemma3PreTrainedModel, GenerationMixin):
-    _tied_weights_keys = ["lm_head.weight"]
-    _tp_plan = {"lm_head": "colwise_rep"}
-    _pp_plan = {"lm_head": (["hidden_states"], ["logits"])}
-    config_class = Gemma3TextConfig
-    base_model_prefix = "language_model"
-
-    def __init__(self, config: Gemma3TextConfig):
-        super().__init__(config)
-        self.model = Gemma3TextModel(config)
-        self.vocab_size = config.vocab_size
-        self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-
-        # Initialize weights and apply final processing
-        self.post_init()
-
-    def get_input_embeddings(self):
-        return self.model.embed_tokens
-
-    def set_input_embeddings(self, value):
-        self.model.embed_tokens = value
-
-    def get_output_embeddings(self):
-        return self.lm_head
-
-    def set_output_embeddings(self, new_embeddings):
-        self.lm_head = new_embeddings
-
-    def set_decoder(self, decoder):
-        self.model = decoder
-
-    def get_decoder(self):
-        return self.model
-
-    @can_return_tuple
-    def forward(
-        self,
-        input_ids: Optional[torch.LongTensor] = None,
-        attention_mask: Optional[torch.Tensor] = None,
-        position_ids: Optional[torch.LongTensor] = None,
-        past_key_values: Optional[Cache] = None,
-        inputs_embeds: Optional[torch.FloatTensor] = None,
-        labels: Optional[torch.LongTensor] = None,
-        use_cache: Optional[bool] = None,
-        output_attentions: Optional[bool] = None,
-        output_hidden_states: Optional[bool] = None,
-        cache_position: Optional[torch.LongTensor] = None,
-        logits_to_keep: Union[int, torch.Tensor] = 0,
-        **loss_kwargs,
-    ) -> CausalLMOutputWithPast:
-        if self.training and self.config._attn_implementation != "eager":
-            logger.warning(
-                "It is strongly recommended to train Gemma3 models with the `eager` attention implementation "
-                f"instead of `{self.config._attn_implementation}`. Use `eager` with `AutoModelForCausalLM.from_pretrained('<path-to-checkpoint>', attn_implementation='eager')`."
-            )
-        output_attentions = output_attentions if output_attentions is not None else self.config.output_attentions
-        output_hidden_states = (
-            output_hidden_states if output_hidden_states is not None else self.config.output_hidden_states
-        )
-        # decoder outputs consists of (dec_features, layer_state, dec_hidden, dec_attn)
-        outputs: BaseModelOutputWithPast = self.model(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            position_ids=position_ids,
-            past_key_values=past_key_values,
-            inputs_embeds=inputs_embeds,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            cache_position=cache_position,
-            **loss_kwargs,
-        )
-
-        hidden_states = outputs.last_hidden_state
-        # Only compute necessary logits, and do not upcast them to float if we are not computing the loss
-        slice_indices = slice(-logits_to_keep, None) if isinstance(logits_to_keep, int) else logits_to_keep
-        logits = self.lm_head(hidden_states[:, slice_indices, :])
-        if self.config.final_logit_softcapping is not None:
-            logits = logits / self.config.final_logit_softcapping
-            logits = torch.tanh(logits)
-            logits = logits * self.config.final_logit_softcapping
-
-        loss = None
-        if labels is not None:
-            loss = self.loss_function(logits, labels, self.vocab_size, **loss_kwargs)
-
-        return CausalLMOutputWithPast(
-            loss=loss,
-            logits=logits,
-            past_key_values=outputs.past_key_values,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-        )
-
-
 class Gemma3MultiModalProjector(nn.Module):
     def __init__(self, config: Gemma3Config):
         super().__init__()
@@ -1356,55 +1255,3 @@ class Gemma3Processor(ProcessorMixin):
         tokenizer_input_names = self.tokenizer.model_input_names + ["token_type_ids"]
         image_processor_input_names = self.image_processor.model_input_names
         return list(dict.fromkeys(tokenizer_input_names + image_processor_input_names))
-
-
-def inference():
-    quantization_config = BitsAndBytesConfig(load_in_4bit=True)
-    model = Gemma3ForConditionalGeneration.from_pretrained(
-        "google/gemma-3-4b-it",
-        quantization_config=quantization_config,
-        torch_dtype=torch.bfloat16,
-    )
-    processor = Gemma3Processor.from_pretrained("google/gemma-3-4b-it")
-
-    messages = [
-        {
-            "role": "system",
-            "content": [
-                {"type": "text", "text": "You are a helpful assistant who gives concise yet detailed answers."}
-            ],
-        },
-        {
-            "role": "user",
-            "content": [
-                {
-                    "type": "image",
-                    "url": "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg",
-                },
-                {"type": "text", "text": "Is the cat chonky?"},
-            ],
-        },
-    ]
-
-    inputs = processor.apply_chat_template(
-        messages,
-        tokenize=True,
-        return_dict=True,
-        return_tensors="pt",
-        add_generation_prompt=True,
-    ).to(model.device)
-    generation_config = GenerationConfig(
-        do_sample=False,
-        max_new_tokens=64,
-    )
-    output_ids = model.generate(**inputs, generation_config=generation_config)
-    output_str = processor.batch_decode(
-        output_ids[:, len(inputs["input_ids"].squeeze()) :],
-        skip_special_tokens=True,
-        clean_up_tokenization_spaces=False,
-    )[0]
-    return output_str
-
-
-if __name__ == "__main__":
-    print("\n\nOUTPUT:", inference())
