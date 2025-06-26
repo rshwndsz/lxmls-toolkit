@@ -25,6 +25,8 @@ logger.setLevel(logging.INFO)
 # https://huggingface.co/google/gemma-3-4b-it/blob/main/config.json
 class Gemma3TextConfig:
     def __init__(self):
+        self._attn_implementation: str = "eager"  # TODO free from hf
+
         self.vocab_size: int = 262_208
 
         self.num_hidden_layers: int = 34
@@ -153,7 +155,7 @@ def rotate_half(x):
 
 
 def apply_rope(x, cos, sin):
-    x = x.unsqueeze(1)
+    cos, sin = cos.unsqueeze(1), sin.unsqueeze(1)
     return (x * cos) + (rotate_half(x) * sin)
 
 
@@ -207,6 +209,7 @@ class Attention(nn.Module):
         return attn_out
 
     def forward(self, x, pe, mask, past_kv, cache_pos):
+        logger.debug(f"Attention.forward START - {x.shape}")
         input_shape = x.shape[:-1]
         hidden_shape = (*input_shape, -1, self.head_dim)
 
@@ -234,6 +237,7 @@ class Attention(nn.Module):
         attn_out = attn_out.reshape(*input_shape, -1).contiguous()
         attn_out = self.o_proj(attn_out)
 
+        logger.debug(f"Attention.forward END - {x.shape}")
         return attn_out
 
 
@@ -253,7 +257,8 @@ class DecoderLayer(nn.Module):
         self.pre_feedforward_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps)
         self.post_feedforward_layernorm = RMSNorm(config.hidden_size, config.rms_norm_eps)
 
-    def forward(self, x, pe_global, pe_local, mask, p_ids, past_kv, cache_pos):
+    def forward(self, x, pe_global, pe_local, attention_mask, position_ids=None, past_kv=None, cache_pos=None):
+        logger.debug(f"DecoderLayer[{self.layer_idx}].forward START - {x.shape}")
         residual = x
 
         x = self.input_layernorm(x)
@@ -263,7 +268,7 @@ class DecoderLayer(nn.Module):
         else:
             pe = pe_global
 
-        x = self.self_attn(x=x, pe=pe, mask=mask, past_kv=past_kv, cache_pos=cache_pos)
+        x = self.self_attn(x=x, pe=pe, mask=attention_mask, past_kv=past_kv, cache_pos=cache_pos)
         x = self.post_attention_layernorm(x)
         x = residual + x
 
@@ -273,6 +278,7 @@ class DecoderLayer(nn.Module):
         x = self.post_feedforward_layernorm(x)
         x = residual + x
 
+        logger.debug(f"DecoderLayer[{self.layer_idx}].forward END - {x.shape}")
         return x
 
 
@@ -298,6 +304,7 @@ class Gemma3TextModel(nn.Module):
         )
 
     def forward(self, input_ids, attention_mask, position_ids=None, past_kv=None, cache_pos=None):
+        logger.debug("Gemma3TextModel.forward START")
         input_embeds = self.embed_tokens(input_ids)
 
         if past_kv is None:
@@ -318,6 +325,7 @@ class Gemma3TextModel(nn.Module):
                 "input_embeds": input_embeds,
                 "attention_mask": attention_mask,
                 "past_key_values": past_kv,
+                "cache_position": cache_pos,
             }
             causal_mask_mapping = {
                 "full_attention": create_causal_mask(**mask_kwargs),
@@ -330,19 +338,20 @@ class Gemma3TextModel(nn.Module):
 
         for decoder_layer in self.layers[: self.config.num_hidden_layers]:
             assert isinstance(decoder_layer.attention_type, str)
-            layer_out = decoder_layer(
+            logger.debug(f"SHAPE: {x.shape}")
+            x = decoder_layer(
                 x,
                 pe_global=pe_global,
                 pe_local=pe_local,
-                mask=causal_mask_mapping[decoder_layer.attention_type],
-                p_ids=position_ids,
+                attention_mask=causal_mask_mapping[decoder_layer.attention_type],
+                position_ids=position_ids,
                 past_kv=past_kv,
                 cache_pos=cache_pos,
             )
-            x = layer_out[0]
 
         x = self.norm(x)
 
+        logger.debug("Gemma3TextModel.forward END")
         return x, past_kv
 
 
@@ -354,11 +363,13 @@ class Gemma3ForCausalLM(nn.Module):
 
         self.model = Gemma3TextModel(config)
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
-        self.lm_head.weight = nn.Parameter(self.model.embed_tokens.weight.transpose(0, 1))
+        self.lm_head.weight = nn.Parameter(self.model.embed_tokens.weight)  # FIXME is transpose needed?
 
-    def forward(self, input_ids, attention_mask, position_ids, past_kv, cache_pos):
+    def forward(self, input_ids, attention_mask, position_ids=None, past_kv=None, cache_pos=None):
+        logger.debug("Gemma3ForCausalLM.forward START")
         out, _ = self.model(input_ids, attention_mask, position_ids, past_kv, cache_pos)
         logits = self.lm_head(out[:, slice(0, None), :])
+        logger.debug("Gemma3ForCausalLM.forward END")
         return logits
 
     def load_weights(self, shards_dir: Path | str):
@@ -371,13 +382,25 @@ class Gemma3ForCausalLM(nn.Module):
         lm_state_dict = {
             k[len("language_model.") :]: v for k, v in state_dict.items() if k.startswith("language_model.")
         }
-        # breakpoint()
         self.load_state_dict(lm_state_dict, strict=False)
+
+
+def decode(logits: torch.Tensor, tokenizer, temperature: float = 0.8):
+    logger.debug("Decoding logits")
+    # Get logits of last token
+    # NOTE Hardcoded batch=0
+    x = logits[0, -1, :]
+    x /= temperature
+    probs = F.softmax(x, dim=-1)
+    idx = torch.argmax(probs, dim=-1).detach().cpu()
+    return tokenizer.decode(idx, skip_special_tokens=True)
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--shards", type=str)
+    parser.add_argument("--len", type=int, default=10)
+    parser.add_argument("--prompt", type=str, default="Write a poem about a chonky cat.")
     parser.add_argument("--debug", action="store_true")
     args = parser.parse_args()
 
@@ -385,11 +408,20 @@ if __name__ == "__main__":
         logger.setLevel(logging.DEBUG)
         logger.debug("Debugging")
 
+    logger.debug("Initialising Gemma3TextConfig")
     config = Gemma3TextConfig()
+
+    logger.debug("Initialising Gemma3ForCausalLM")
     model = Gemma3ForCausalLM(config)
     model.load_weights(args.shards)
 
+    logger.debug("Loading tokenizer")
     tokenizer = AutoTokenizer.from_pretrained("google/gemma-3-4b-it")
-    prompt = "Hello, how are you?"
-    inputs = tokenizer(prompt, return_tensors="pt")
-    model(**inputs)
+
+    prompt = args.prompt
+    for _ in range(args.len):
+        inputs = tokenizer(prompt, return_tensors="pt")
+        logits = model(**inputs)
+        gen = decode(logits, tokenizer)
+        print(gen, end="", flush=True)
+        prompt += gen
