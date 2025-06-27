@@ -572,6 +572,36 @@ class Gemma3ForConditionalGeneration(nn.Module):
         logits = self.lm_head(out[:, slice(0, None), :])
         return logits
 
+    def load_weights(self, shards: Path | str):
+        logger.debug(f"Loading weights from {shards}")
+        shards = Path(shards)
+        state_dict = {}
+        for shard_file in sorted(list(shards.glob("*.safetensors"))):
+            shard = load_file(shard_file, device="cpu")
+            state_dict.update(shard)
+        lm_state_dict = {
+            k[len("language_model.") :]: v for k, v in state_dict.items() if k.startswith("language_model.")
+        }
+        self.model.language_model.load_state_dict(lm_state_dict, strict=False)
+
+        mm_state_dict = {
+            k[len("multi_modal_projector.") :]: v
+            for k, v in state_dict.items()
+            if k.startswith("multi_modal_projector.")
+        }
+        self.model.multi_modal_projector.load_state_dict(mm_state_dict, strict=False)
+
+        vm_state_dict = {k[len("vision_tower.") :]: v for k, v in state_dict.items() if k.startswith("vision_tower.")}
+        self.model.vision_tower.load_state_dict(vm_state_dict, strict=False)
+
+        self.lm_head.load_state_dict(
+            {
+                k[len("language_model.lm_head.") :]: v
+                for k, v in state_dict.items()
+                if k.startswith("language_model.lm_head.")
+            }
+        )
+
 
 def decode(logits: torch.Tensor, tokenizer, temperature: float = 0.8):
     logger.debug("Decoding logits")
@@ -582,6 +612,60 @@ def decode(logits: torch.Tensor, tokenizer, temperature: float = 0.8):
     probs = F.softmax(x, dim=-1)
     idx = torch.argmax(probs, dim=-1).detach().cpu()
     return tokenizer.decode(idx, skip_special_tokens=True)
+
+
+def text_textonly(shards, prompt, len):
+    logger.debug("Initialising Gemma3TextConfig")
+    config = Gemma3TextConfig()
+
+    logger.debug("Initialising Gemma3ForCausalLM")
+    model = Gemma3ForCausalLM(config)
+    model.load_weights(shards)
+
+    logger.debug("Loading tokenizer")
+    tokenizer = AutoTokenizer.from_pretrained("google/gemma-3-4b-it")
+
+    for _ in range(len):
+        inputs = tokenizer(prompt, return_tensors="pt")
+        logits = model(**inputs)
+        gen = decode(logits, tokenizer)
+        print(gen, end="", flush=True)
+        prompt += gen
+
+
+def test_multimodal(shards, len: int):
+    from transformers import AutoProcessor
+
+    messages = [
+        {"role": "system", "content": [{"type": "text", "text": "You are a helpful assistant."}]},
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "image",
+                    "image": "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/bee.jpg",
+                },
+                {"type": "text", "text": "Describe this image in detail."},
+            ],
+        },
+    ]
+    config = Gemma3Config()
+    processor = AutoProcessor.from_pretrained("google/gemma-3-4b-it")
+    model = Gemma3ForConditionalGeneration(config)
+    model.load_weights(shards)
+
+    for i in range(len):
+        inputs = processor.apply_chat_template(
+            messages, add_generation_prompt=True, tokenize=True, return_dict=True, return_tensors="pt"
+        ).to(model.device, dtype=torch.bfloat16)
+        logits = model(**inputs)
+        gen = decode(logits, processor)
+        print(gen, end="", flush=True)
+
+        if i == 0:
+            messages.append({"role": "assistant", "content": [{"type": "text", "text": gen}]})
+        else:
+            messages[-1]["content"][0]["text"] += gen
 
 
 if __name__ == "__main__":
@@ -598,20 +682,4 @@ if __name__ == "__main__":
         logger.setLevel(logging.DEBUG)
         logger.debug("Debugging")
 
-    logger.debug("Initialising Gemma3TextConfig")
-    config = Gemma3TextConfig()
-
-    logger.debug("Initialising Gemma3ForCausalLM")
-    model = Gemma3ForCausalLM(config)
-    model.load_weights(args.shards)
-
-    logger.debug("Loading tokenizer")
-    tokenizer = AutoTokenizer.from_pretrained("google/gemma-3-4b-it")
-
-    prompt = args.prompt
-    for _ in range(args.len):
-        inputs = tokenizer(prompt, return_tensors="pt")
-        logits = model(**inputs)
-        gen = decode(logits, tokenizer)
-        print(gen, end="", flush=True)
-        prompt += gen
+    text_textonly(args.shards, args.prompt, args.len)
