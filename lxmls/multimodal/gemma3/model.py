@@ -64,6 +64,7 @@ class Gemma3Config:
         self.text_config = Gemma3TextConfig()
         self.vision_config = SiglipVisionConfig()
         self.mm_tokens_per_image = 256
+        self.image_token_id = 262144
         self.image_token_index = 262144
         self.boi_token_id = 255999
         self.eoi_token_id = 256000
@@ -459,7 +460,9 @@ class Gemma3Model(nn.Module):
         self.language_model = Gemma3TextModel(self.config.text_config)
 
         self.vocab_size = self.config.text_config.vocab_size
-        self.pad_token_id = self.config.pad_token_id if self.config.pad_token_id is not None else -1
+        self.pad_token_id = (
+            self.config.text_config.pad_token_id if self.config.text_config.pad_token_id is not None else -1
+        )
 
     def forward(
         self,
@@ -539,6 +542,35 @@ class Gemma3Model(nn.Module):
                 cache_pos=cache_pos,
             )
             return out
+
+
+class Gemma3ForConditionalGeneration(nn.Module):
+    def __init__(self, config: Gemma3Config):
+        self.config = config
+        self.model = Gemma3Model(config)
+        self.lm_head = nn.Linear(config.text_config.hidden_size, config.text_config.vocab_size, bias=False)
+
+    def forward(
+        self,
+        input_ids=None,
+        pixel_values=None,
+        attention_mask=None,
+        position_ids=None,
+        past_kv=None,
+        token_type_ids=None,
+        cache_pos=None,
+    ):
+        out = self.model(
+            input_ids=input_ids,
+            pixel_values=pixel_values,
+            attention_mask=attention_mask,
+            position_ids=position_ids,
+            past_kv=past_kv,
+            cache_pos=cache_pos,
+            token_type_ids=token_type_ids,
+        )
+        logits = self.lm_head(out[:, slice(0, None), :])
+        return logits
 
 
 def decode(logits: torch.Tensor, tokenizer, temperature: float = 0.8):
