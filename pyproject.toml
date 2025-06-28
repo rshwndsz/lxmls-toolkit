@@ -27,8 +27,7 @@ dependencies = [
     "six",
     "transformers",
     "ruff",
-    "bitsandbytes>=0.46.0",
-    "accelerate>=1.8.0",
+    "bertviz>=1.4.1",
 ]
 
 [project.urls]
