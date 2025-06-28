@@ -451,10 +451,13 @@ class GPT(nn.Module):
         # forward the model `steps` times to get samples, in a batch
         y = self.generate(x, max_new_tokens=tokens, do_sample=do_sample, top_k=100)
 
+        out_l = []
         for i in range(num_samples):
             out = self.tok.decode(y[i].cpu().squeeze())
             print("-" * 80)
             print(out)
+            out_l.append(out)
+        return out_l
 
     def prompt_topK(self, p_text="", tokens=20, num_samples=5):
         """
@@ -476,7 +479,10 @@ class GPT(nn.Module):
 
         y = self.gen_batch(x, max_new_tokens=tokens, batch=num_samples)
 
+        out_l = []
         for y_tmp in y:
             out = self.tok.decode(y_tmp.cpu().squeeze())
             print("-" * 80)
             print(out)
+            out_l.append(out)
+        return out_l
